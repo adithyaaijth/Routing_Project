@@ -5,13 +5,9 @@ date: "7 July 2017"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ```{r Load_Libraries, message=FALSE, warning=FALSE, include=FALSE}
 library(needs)
-needs(rjson , RCurl , googleway , dplyr, osrm)
+needs(rjson , RCurl , googleway , dplyr, osrm ,leaflet)
 
 ```
 
@@ -37,8 +33,9 @@ key_g_elevation = "AIzaSyDKh0yDCcsZ20ucIejWjPV2t4qttHazfcU"
 
 elevation_json = googleway::google_elevation(polyline = route_json$routes$geometry, key = key_g_elevation , location_type = "path" , samples = 512)
 ele_dump = cbind(elevation_json$results$location , elevation_json$results[c("elevation","resolution")] )
+colnames(ele_dump)[2] = "lon"
 rm(elevation_json,key_g_elevation)
-plot(x= ele_dump$lng , y= ele_dump$lat)
+plot(x= ele_dump$lon , y= ele_dump$lat)
 plot.ts(ele_dump$elevation)
 #write.csv( file="route.csv", x= ele_dump , row.names = FALSE )
 
@@ -54,11 +51,11 @@ intersections=cbind(intersections[c("out","entry","bearings","in")] , coor[c("la
 rm(coor, i)
 
 #nodes
-nodes=data.frame(node=route_json$routes$legs[[1]]$annotation$nodes[[1]],dist_prv_node=c(0,route_json$routes$legs[[1]]$annotation$distance[[1]]) , intersection = NA )
+nodes=data.frame(node=route_json$routes$legs[[1]]$annotation$nodes[[1]],dist_prv_node=c(0,route_json$routes$legs[[1]]$annotation$distance[[1]]) , intersection = NA  , way_id =NA)
 nodes$dist_src=0
 for(i in 2:nrow(nodes))
   nodes$dist_src[i]=nodes$dist_prv_node[i]+nodes$dist_src[i-1]
-nodes=cbind(nodes,decode_pl(route_json$routes$geometry))
+nodes=cbind(nodes,googleway::decode_pl(route_json$routes$geometry))
 rm(i,route_json)
 for( i in  1: nrow(intersections)){ #identifying which nodes are intersectinos too.
   dist = (nodes$lat - intersections$lat[i])^2 + (nodes$lon - intersections$lon[i])^2
@@ -130,59 +127,96 @@ or three two-column dataframes")
   ta=unlist(ta*c),dist1=unlist(dist1),dist2=unlist(dist2)))
 }
 
-
+#Turing Angles for equidistant points
 theta=numeric()
 for(i in 1:(nrow(ele_dump) - 2)){
-  a=bearing.ta(ele_dump[i,c("lng","lat")], ele_dump[i+1, c("lng","lat")] , ele_dump[i+2 , c("lng","lat")])  #should pass (longitude,lattitude)
+  a=bearing.ta(ele_dump[i,c("lon","lat")], ele_dump[i+1, c("lon","lat")] , ele_dump[i+2 , c("lon","lat")])  #should pass (longitude,lattitude)
   theta[i]=a$ta
   }
-plot.ts(theta , type="S")
-ele_dump$theta=c(NA,theta,NA)
+#plot.ts(theta , type="S")
+ele_dump$theta = c(NA,theta,NA)
 
-plotrix::twoord.plot(ele_dump$lng , ele_dump$lat ,ele_dump$lng, ele_dump$theta , xlab="Longitude" , ylab="Latitude" , rylab="Angle in Degrees" ,lcol=4 , type=c("l" , "l") , main = "Caldwell to Bryan - Turning Angle on the Road" , lpch = 23)
+plotrix::twoord.plot(ele_dump$lon , ele_dump$lat ,ele_dump$lon, ele_dump$theta , xlab="Longitude" , ylab="Latitude" , rylab="Angle in Degrees" ,lcol=4 , type=c("l" , "l") , main = "Turning Angle at each Equidistant Point" , lpch = 23)
 
+#Turing angle for nodes
+theta=numeric()
+for(i in 1:(nrow(nodes) - 2)){
+  a=bearing.ta(nodes[i,c("lon","lat")], nodes[i+1, c("lon","lat")] , nodes[i+2 , c("lon","lat")])  #should pass (longitude,lattitude)
+  theta[i]=a$ta
+  }
+plot.ts(theta , type="h")
+nodes$theta = c(NA,theta,NA)
+
+plotrix::twoord.plot(nodes$lon , nodes$lat ,nodes$lon, nodes$theta , xlab="Longitude" , ylab="Latitude" , rylab="Angle in Degrees" ,lcol=4 , type=c("l" , "l") , main = "Turning Angle at each Node" , lpch = 23)
+
+rm(anglefun, bearing.ta, a, i, theta)
 
 ```
 
-
-```{r OSM}
-ways=data.frame((matrix(ncol = 2, nrow = 0)) )
-colnames(ways)=c("way_id","prime_nodes")
+```{r fetching OSM Data}
+ways=data.frame((matrix(ncol = 3, nrow = 0)) )
+colnames(ways)=c("way_id","prime_nodes", "offroad")
 
 start.time <- Sys.time()
 for( i in 1:nrow(nodes)){
 print(i)
 req = paste0("http://api.openstreetmap.org/api/0.6/node/",nodes$node[i],"/ways")
 resRaw = RCurl::getURL(utils::URLencode(req), useragent = "R-User")
-xml_data <- xmlToList(resRaw)
-d=length(xml_data)
-for(j in 1:(d-1)){
+xml_data <- XML::xmlToList(resRaw)
+for(j in 1:(length(xml_data)-1)){
 a=xml_data[[j]]
+
 if(!a$.attrs["id"] %in% ways$way_id){
    ways[nrow(ways)+1, "way_id"] = a$.attrs["id"]
-   ways[nrow(ways),"prime_nodes"]= nodes$node[i]
+   ways[nrow(ways),"prime_nodes"]= list(nodes$node[i])
+   ways[nrow(ways),"offroad"] = TRUE
    tag = names(a)=="tag"
    for(n in 1:length(tag))
      if(tag[n])
       ways[nrow(ways), a[[n]]["k"]] = a[[n]]["v"]
 }
-else
-  ways$prime_nodes[ways$prime_nodes==a$.attrs["id"]] =c(ways$prime_nodes[ways$prime_nodes==a$.attrs["id"]], nodes$node[i]) 
-
+else{
+  ways$offroad[ways$way_id %in%  a$.attrs["id"]] = FALSE
+  ways$prime_nodes[ways$way_id %in%  a$.attrs["id"]]  =list(c(unlist(ways$prime_nodes[ ways$way_id %in%  a$.attrs["id"]]), nodes$node[i]))
+}
 }
 }
 end.time <- Sys.time()
 time.taken <- end.time - start.time
 time.taken
-b=xml_data[[2]]
-c=xml_data[[3]]
-a=length(xml_data$way)
-qw=xml_data$way$.attrs
-c=a[[9]]
-b=xml_data$way$tag
-d=xml_data[[3]]
 
 
-}
+for(q in 1:nrow(ways))  #adding the way information to the nodes along the route
+  if(ways$offroad[q] == FALSE)
+    nodes$ways[nodes$node %in% unlist(ways$prime_nodes[q])] = q
+    
+    
+rm(end.time,start.time , i , j, n ,resRaw , a, xml_data, q, tag , req)
+
+#write.csv( file="ways.csv", x= ways[, ! colnames(ways) %in% c("prime_nodes")] , row.names = FALSE )
+
+```
+
+```{r Mapping with leaflet }
+
+#Marking the nodes and intersection on OSM
+nodes_map = leaflet(nodes) %>% 
+  addTiles() %>% 
+  fitBounds(min(nodes$lon), min(nodes$lat), max(nodes$lon), max(nodes$lat)) %>%
+  addCircles(~lon, ~lat, label=paste(paste0("# =" , 1:nrow(nodes)),paste0("Turning Angle = ", as.character(round(nodes$theta,4))),paste0("Highyway_type = ", as.character(ways$highway[nodes$ways])), paste0("#Lanes = ",as.character(ways$lanes[nodes$ways])),paste0("MaxSpeed = ", as.character(ways$maxspeed[nodes$ways])),paste0("Oneway = ",as.character(ways$oneway[nodes$ways])),sep=" || "), weight = 5, radius=5,color=ifelse(is.na(nodes$intersection),"blue","red"), stroke = T, fillOpacity = 0.8)%>% 
+  addLegend(position = 'bottomright', colors = c("red","blue"), labels = c("Intersection","Non-Intersection"), opacity = 0.4,
+                      title = 'Labels') %>% 
+  addProviderTiles(providers$OpenStreetMap)
+nodes_map
+htmlwidgets::saveWidget(nodes_map, file="nodes.html")
+
+#Marking the equidistant points on OSM
+ele_map = leaflet(ele_dump) %>% 
+  addTiles() %>% 
+  fitBounds(min(ele_dump$lon), min(ele_dump$lat), max(ele_dump$lon), max(ele_dump$lat)) %>%
+  addCircles(~lon, ~lat, label=paste0("Turning_Angle = ",as.character(round(ele_dump$theta,4))) , weight = 5, radius=5,color="blue", stroke = TRUE, fillOpacity = 0.8) %>% 
+  addProviderTiles(providers$OpenStreetMap)
+ele_map
+htmlwidgets::saveWidget(ele_map, file="equi_map.html")
 
 ```
