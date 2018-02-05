@@ -29,7 +29,7 @@ if (!vres)
 rm(vres,resRaw,req,src,dst)
 
 #Google elevation service
-key_g_elevation = "AIzaSyDKh0yDCcsZ20ucIejWjPV2t4qttHazfcU"
+key_g_elevation = "key"
 
 elevation_json = googleway::google_elevation(polyline = route_json$routes$geometry, key = key_g_elevation , location_type = "path" , samples = 512)
 ele_dump = cbind(elevation_json$results$location , elevation_json$results[c("elevation","resolution")] )
