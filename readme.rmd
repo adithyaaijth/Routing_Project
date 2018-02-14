@@ -1,0 +1,10 @@
+# Routing Project
+
+> This code was developed when I started on my Master's Thesis during Summer of 2017.
+  The objective was to figure out a way to get the route information knowing the starting and the end coordinates when you are going to drive.
+
+### Output
+  
+  - The output is the node.html file, it can be found in the repository here.
+  
+  ![](https://github.com/adithyaaijth/Routing_Project/blob/master/nodes.JPG)
