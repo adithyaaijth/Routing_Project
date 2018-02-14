@@ -1,22 +1,18 @@
----
-title: "Routing_Project"
-author: "Adithya Ajith"
-date: "7 July 2017"
-output: html_document
----
 
-```{r Load_Libraries, message=FALSE, warning=FALSE, include=FALSE}
+# title: "Routing_Project"
+# author: "Adithya Ajith"
+#date: "7 July 2017"
+# output: html_document
+
 library(needs)
 needs(rjson , RCurl , googleway , dplyr, osrm ,leaflet)
 
-```
-
-```{r Routing}
 
 src = c(30.538346,-96.691991) #(lat,lon)
 dst = c(30.687838,-96.372954) #(lat,lon)
 
-#Routing with OSRM
+##Routing with OSRM
+
 req = paste("http://router.project-osrm.org/", "route/v1/", "driving", "/", src[2], ",", src[1], ";", dst[2], ",", dst[1], 
             "?alternatives=false&geometries=polyline&steps=true&overview=full&annotations=true", sep = "")
 resRaw = RCurl::getURL(utils::URLencode(req), useragent = "R-User")
@@ -28,7 +24,7 @@ if (!vres)
   route_json$routes$geometry = gsub(pattern = "tilapia", replacement = "\\\\", x = route_json$routes$geometry)
 rm(vres,resRaw,req,src,dst)
 
-#Google elevation service
+##Google elevation service
 key_g_elevation = "key"
 
 elevation_json = googleway::google_elevation(polyline = route_json$routes$geometry, key = key_g_elevation , location_type = "path" , samples = 512)
@@ -64,9 +60,8 @@ for( i in  1: nrow(intersections)){ #identifying which nodes are intersectinos t
 rm(dist,i)
 #write.csv( file="nodes.csv", x= nodes , row.names = FALSE )
 
-```
 
-```{r turning angle}
+## Turning Angle Calculation
 
 anglefun <- function(xx,yy,bearing=TRUE,as.deg=FALSE){
   ## calculates the compass bearing of the line between two points
@@ -151,9 +146,9 @@ plotrix::twoord.plot(nodes$lon , nodes$lat ,nodes$lon, nodes$theta , xlab="Longi
 
 rm(anglefun, bearing.ta, a, i, theta)
 
-```
 
-```{r fetching OSM Data}
+## fetching OSM Data
+
 ways=data.frame((matrix(ncol = 3, nrow = 0)) )
 colnames(ways)=c("way_id","prime_nodes", "offroad")
 
@@ -195,9 +190,7 @@ rm(end.time,start.time , i , j, n ,resRaw , a, xml_data, q, tag , req)
 
 #write.csv( file="ways.csv", x= ways[, ! colnames(ways) %in% c("prime_nodes")] , row.names = FALSE )
 
-```
-
-```{r Mapping with leaflet }
+###  Mapping with leaflet
 
 #Marking the nodes and intersection on OSM
 nodes_map = leaflet(nodes) %>% 
@@ -218,5 +211,3 @@ ele_map = leaflet(ele_dump) %>%
   addProviderTiles(providers$OpenStreetMap)
 ele_map
 htmlwidgets::saveWidget(ele_map, file="equi_map.html")
-
-```
