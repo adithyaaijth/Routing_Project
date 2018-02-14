@@ -6,8 +6,9 @@
 ### Output
   
   - The output is the node.html file, it can be found in the repository here.
-  - Uses the OSRM API and OSM API to get the data. OSRM server crashes often though. I later figured out that mapbox API is does the same job but more reliable. But Mapbox have limit of 50000 free queries per month.
+  - Uses the OSRM API and OSM API to get the data. OSRM server crashes often though. I later figured out that mapbox API does the same job and is more reliable. But Mapbox have limit of 50000 free queries per month. OSRM is completely free.
   - leaflet package is used to plot the info on the map and generate the .html file.
-  - It shows the details like Turning angle, Max Speed, no of lanes  and type of highway.
+  - It shows the details like Turning angle, Max Speed, no of lanes  and type of highway along the route.
+  - It shows where the intersections are along the route too.
   
   ![](https://github.com/adithyaaijth/Routing_Project/blob/master/nodes.JPG)
