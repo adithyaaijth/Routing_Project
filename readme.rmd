@@ -11,4 +11,4 @@
   - It shows the details like Turning angle, Max Speed, no of lanes  and type of highway along the route.
   - It shows where the intersections are along the route too.
   
-  ![](https://github.com/adithyaaijth/Routing_Project/blob/master/nodes.JPG)
+  ![](https://github.com/adithyaaijth/Routing_Project/blob/master/Output/nodes.JPG)
