@@ -12,3 +12,5 @@
   - It shows where the intersections are along the route too.
   
   ![](https://github.com/adithyaaijth/Routing_Project/blob/master/Output/nodes.JPG)
+  ![](https://github.com/adithyaaijth/Routing_Project/blob/master/Output/nodes.html)
+  
