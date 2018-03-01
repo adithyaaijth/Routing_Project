@@ -37,14 +37,19 @@ plot.ts(ele_dump$elevation)
 
 #tabulating intersection on the route
 intersections=NULL
-for (i in 1:(nrow(route_json$routes$legs[[1]][1,1][[1]])-1))
-intersections=rbind(intersections,route_json$routes$legs[[1]][1,1][[1]]["intersections"][i,][[1]])
-intersections= intersections[2:nrow(intersections),]
+for(k in 1:(nrow(route_json$routes$legs[[1]]["steps"][1,1][[1]])))
+  for (i in 1:(nrow(route_json$routes$legs[[1]]["steps"][1,1][[1]][k,1][[1]])-1)){
+    buffer = route_json$routes$legs[[1]]["steps"][1,1][[1]][k,1][[1]]
+    if(sum( colnames(buffer) %in% "in") == 0)
+      next
+    intersections=rbind(intersections,buffer)
+  }
+intersections= na.omit(intersections)
 coor=as.data.frame(matrix(unlist(intersections["location"]), nrow = nrow(intersections["location"]), byrow = T))
 colnames(coor)=c("lon","lat")
 intersections=cbind(intersections[c("out","entry","bearings","in")] , coor[c("lat", "lon")] )
 #write.csv( file="intersections.csv", x= coor[c("lat","lng")] , row.names = FALSE )
-rm(coor, i)
+rm(coor, i,k,buffer)
 
 #nodes
 nodes=data.frame(node=route_json$routes$legs[[1]]$annotation$nodes[[1]],dist_prv_node=c(0,route_json$routes$legs[[1]]$annotation$distance[[1]]) , intersection = NA  , way_id =NA)
